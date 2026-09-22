@@ -108,13 +108,13 @@ app.post("/api/pending-credits",auth,async(q,r)=>{try{
   const p={id:String(await next("pending_credits")),created_at:new Date().toISOString(),client_id:cid(c.id),amount:a,status:"pending"};const {data,error}=await sb.from("pending_credits").insert(p).select().single();if(error)throw error;r.json(data);
 }catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
 
-app.post("/api/pending-credits/:id/validate",admin,async(q,r)=>{try{
+app.post("/api/pending-credits/:id/validate",staff,async(q,r)=>{try{
   const {data:p,error:pe}=await sb.from("pending_credits").select("*").eq("id",cid(q.params.id)).eq("status","pending").maybeSingle();if(pe)throw pe;if(!p)return r.status(404).json({error:"Demande introuvable"});
   const now=new Date().toISOString();const {data:updated,error:ue}=await sb.from("pending_credits").update({status:"validated",validated_at:now}).eq("id",p.id).select().single();if(ue)throw ue;
   const t={id:String(await next("transactions")),created_at:now,client_id:p.client_id,operation:"Crédit Revolut",product_id:null,method:"Revolut",amount:Number(p.amount),created_by:q.session.user.username};const {data:tx,error:te}=await sb.from("transactions").insert(t).select().single();if(te)throw te;
   r.json({pending:updated,transaction:tx,client:await getClient(p.client_id)});
 }catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
-app.post("/api/pending-credits/:id/reject",admin,async(q,r)=>{try{const {data,error}=await sb.from("pending_credits").update({status:"rejected",rejected_at:new Date().toISOString()}).eq("id",cid(q.params.id)).eq("status","pending").select().maybeSingle();if(error)throw error;if(!data)return r.status(404).json({error:"Demande introuvable"});r.json(data)}catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
+app.post("/api/pending-credits/:id/reject",staff,async(q,r)=>{try{const {data,error}=await sb.from("pending_credits").update({status:"rejected",rejected_at:new Date().toISOString()}).eq("id",cid(q.params.id)).eq("status","pending").select().maybeSingle();if(error)throw error;if(!data)return r.status(404).json({error:"Demande introuvable"});r.json(data)}catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
 
 app.post("/api/transactions",staff,async(q,r)=>{try{
   const c=await getClient(q.body.clientId);const {data:p,error:pe}=await sb.from("products").select("*").eq("id",cid(q.body.productId)).eq("active",true).maybeSingle();if(pe)throw pe;if(!c||!p)return r.status(404).json({error:"Personne ou produit introuvable"});
