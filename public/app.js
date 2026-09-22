@@ -59,12 +59,17 @@ async function openClient(id){
 function renderModal(){
   const c=selectedClient;
   const products=window.products||[];
-  $("#modalContent").innerHTML=`
-    <div class="person-head"><small>ID ${esc(c.id)}</small><h2>${esc(c.name)}</h2><div class="person-balance">${euro(c.balance)}</div><div>Solde actuel</div></div>
+  const participant=me?.role==="participant";
+  const staffControls=participant?"":`
     <div class="ops">${products.map(p=>`<button class="op" onclick="selectProduct('${esc(p.id)}')">${esc(p.icon||"🛒")}<br>${esc(p.name)}<small>-${euro(p.price)}</small></button>`).join("")}</div>
     <div class="credit-box"><h3>💰 Ajouter du crédit</h3><div class="credit-form"><input id="creditInput" type="number" min="0.01" step="0.01" placeholder="Montant en €" value="${esc(creditAmount)}" oninput="creditAmount=this.value"><button class="primary" onclick="creditClient()">Créditer manuellement</button></div><button class="revolut-btn" onclick="requestRevolutCredit()">🔴 Demander un crédit avec Revolut</button></div>
     <div class="method"><button class="${selectedMethod==="Virement"?"selected":""}" onclick="selectMethod('Virement')">Virement</button><button class="${selectedMethod==="Espèces"?"selected":""}" onclick="selectMethod('Espèces')">Espèces</button><button class="${selectedMethod==="Carte"?"selected":""}" onclick="selectMethod('Carte')">Carte</button></div>
-    <button class="primary confirm" ${selectedProduct?"":"disabled"} onclick="confirmConsumption()">VALIDER ${selectedProduct?esc(selectedProduct.name):"une consommation"}</button>
+    <button class="primary confirm" ${selectedProduct?"":"disabled"} onclick="confirmConsumption()">VALIDER ${selectedProduct?esc(selectedProduct.name):"une consommation"}</button>`;
+  const participantControls=participant?`
+    <div class="credit-box"><h3>💰 Ajouter du crédit</h3><div class="credit-form"><input id="creditInput" type="number" min="0.01" step="0.01" placeholder="Montant en €" value="${esc(creditAmount)}" oninput="creditAmount=this.value"></div><button class="revolut-btn" onclick="requestRevolutCredit()">🔴 Demander un crédit avec Revolut</button></div>`:"";
+  $("#modalContent").innerHTML=`
+    <div class="person-head"><small>ID ${esc(c.id)}</small><h2>${esc(c.name)}</h2><div class="person-balance">${euro(c.balance)}</div><div>Solde actuel</div></div>
+    ${participant?participantControls:staffControls}
     <div style="margin-top:20px"><h3>Dernières opérations</h3>${c.history.slice(0,8).map(t=>`<div class="tx"><div><b>${esc(t.operation)}</b><br><small>${new Date(t.created_at).toLocaleString("fr-FR")} · ${esc(t.method)}</small></div><b class="${t.amount>=0?"plus":"minus"}">${t.amount>=0?"+":""}${euro(t.amount)}</b></div>`).join("")||"<small>Aucune opération</small>"}</div>`;
   $("#modal").classList.remove("hidden");
 }
@@ -108,7 +113,7 @@ async function loadCredits(){
   try{
     const rows=await api("/api/pending-credits");
     const pending=rows.filter(x=>x.status==="pending");
-    $("#pendingCredits").innerHTML=pending.map(p=>`<div class="tx pending"><div><b>${esc(p.client_id)}</b> demande <b>${euro(p.amount)}</b><br><small>${new Date(p.created_at).toLocaleString("fr-FR")}</small></div>${me?.role==="admin"?`<span><button class="soft-btn" onclick="validateCredit('${esc(p.id)}')">✓ Valider</button> <button class="soft-btn" onclick="rejectCredit('${esc(p.id)}')">✕ Refuser</button></span>`:"<small>En attente de vérification</small>"}</div>`).join("")||"<p>Aucune demande en attente.</p>";
+    $("#pendingCredits").innerHTML=pending.map(p=>`<div class="tx pending"><div><b>${esc(p.client_id)}</b> demande <b>${euro(p.amount)}</b><br><small>${new Date(p.created_at).toLocaleString("fr-FR")}</small></div>${["admin","operator"].includes(me?.role)?`<span><button class="soft-btn" onclick="validateCredit('${esc(p.id)}')">✓ Valider</button> <button class="soft-btn" onclick="rejectCredit('${esc(p.id)}')">✕ Refuser</button></span>`:"<small>En attente de vérification</small>"}</div>`).join("")||"<p>Aucune demande en attente.</p>";
   }catch(e){}
 }
 window.validateCredit=async id=>{try{await api("/api/pending-credits/"+id+"/validate",{method:"POST"});await loadCredits();await loadDashboard();await loadClients($("#search").value);await loadHistory();alert("Crédit ajouté.");}catch(e){alert(e.message)}};
