@@ -30,8 +30,11 @@ async function ensureSetup(){
   const {data:products,error:pe}=await sb.from("products").select("id");
   if(pe)throw pe;
   const have=new Set((products||[]).map(x=>String(x.id)));
-  const wanted=[{id:"repas",name:"Repas",price:5,icon:"🍽️",active:true},{id:"aperitif",name:"Apéro",price:5,icon:"🍹",active:true}];
-  for(const p of wanted)if(!have.has(p.id)){const {error}=await sb.from("products").insert(p);if(error)throw error}
+  const wanted=[{id:"repas",name:"Repas",price:5,icon:"🍽️",active:true},{id:"aperitif",name:"Apéro/Convocation",price:5,icon:"🍹",active:true},{id:"amende",name:"Amende",price:1,icon:"👮",active:true}];
+  for(const p of wanted){
+    if(!have.has(p.id)){const {error}=await sb.from("products").insert(p);if(error)throw error}
+    else if(p.id==="aperitif"){const {error}=await sb.from("products").update({name:p.name,price:p.price,icon:p.icon,active:true}).eq("id",p.id);if(error)throw error}
+  }
   const {data:settings,error:se}=await sb.from("settings").select("key").eq("key","revolut_link").maybeSingle();
   if(se)throw se;
   if(!settings){const {error}=await sb.from("settings").insert({key:"revolut_link",value:"https://revolut.me/amamoh"});if(error)throw error}
@@ -122,8 +125,8 @@ app.post("/api/transactions",staff,async(q,r)=>{try{
 }catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
 
 app.post("/api/credit",staff,async(q,r)=>{try{
-  const c=await getClient(q.body.clientId),a=Number(q.body.amount);if(!c||!Number.isFinite(a)||a<=0)return r.status(400).json({error:"Montant invalide"});
-  const t={id:String(await next("transactions")),created_at:new Date().toISOString(),client_id:cid(c.id),operation:"Crédit",product_id:null,method:String(q.body.method||"Virement"),amount:a,created_by:q.session.user.username};const {error}=await sb.from("transactions").insert(t);if(error)throw error;r.json({transaction:t,client:await getClient(c.id)});
+  const c=await getClient(q.body.clientId),a=Number(q.body.amount);if(!c||!Number.isFinite(a)||a===0)return r.status(400).json({error:"Montant invalide"});
+  const t={id:String(await next("transactions")),created_at:new Date().toISOString(),client_id:cid(c.id),operation:a<0?"Correction de crédit":"Crédit",product_id:null,method:String(q.body.method||"Virement"),amount:a,created_by:q.session.user.username};const {error}=await sb.from("transactions").insert(t);if(error)throw error;r.json({transaction:t,client:await getClient(c.id)});
 }catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
 
 app.post("/api/clients",admin,async(q,r)=>{try{
