@@ -28,3 +28,6 @@ button,input{touch-action:manipulation}
 
 .login-shell .big{background:#0e9956}.login-shell .big:hover{filter:brightness(.97)}
 @media(max-width:450px){.brand-mark{width:130px;height:130px}.team-logo{width:130px;height:130px}.login-shell{padding:24px 22px 28px}}
+
+.login-row{gap:16px}.login-date{font-size:12px;color:#344054;text-align:right}.login-error{color:#b42318;margin:0}.login-list .admin-row:last-child{border-bottom:0}
+@media(max-width:760px){.bottom-nav{gap:2px;padding-left:6px;padding-right:6px}.bottom-nav .tab{min-width:0;flex:1;padding:7px 5px;font-size:11px}.bottom-nav .tab span{font-size:17px}}

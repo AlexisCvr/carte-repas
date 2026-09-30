@@ -26,12 +26,15 @@ $("#loginForm").addEventListener("submit",async e=>{e.preventDefault();$("#login
 $("#logout").onclick=async()=>{await api("/api/logout",{method:"POST"});location.reload()};
 
 document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{
+  if(b.dataset.external){openConvocations();return}
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));b.classList.add("active");
   document.querySelectorAll(".page").forEach(x=>x.classList.add("hidden"));
   $("#page-"+b.dataset.page).classList.remove("hidden");window.scrollTo({top:0,behavior:"smooth"});
 });
 $("#search").addEventListener("input",()=>loadClients($("#search").value));
 document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();$("#search").focus()}});
+
+function openConvocations(){window.location.href="https://rso-convocations.onrender.com/"}
 
 async function loadClients(q=""){
   const rows=await api("/api/clients?"+new URLSearchParams({q}));
@@ -120,12 +123,29 @@ window.validateCredit=async id=>{try{await api("/api/pending-credits/"+id+"/vali
 window.rejectCredit=async id=>{if(!confirm("Refuser cette demande ?"))return;try{await api("/api/pending-credits/"+id+"/reject",{method:"POST"});await loadCredits()}catch(e){alert(e.message)}};
 $("#refreshCredits").onclick=loadCredits;
 
+async function loadLastLogins(){
+  const container=$("#lastLogins");
+  if(!container||me?.role!=="admin")return;
+  container.innerHTML='<p class="muted">Chargement...</p>';
+  try{
+    const logins=await api("/api/last-logins");
+    if(!Array.isArray(logins)||!logins.length){container.innerHTML='<p class="muted">Aucune connexion enregistrée.</p>';return}
+    container.innerHTML=logins.map(item=>{
+      const date=item.last_login_at?new Date(item.last_login_at).toLocaleString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric",hour:"2-digit",minute:"2-digit"}):"";
+      const label=item.role==="participant"?"Joueur":item.role==="admin"?"Administrateur":"Opérateur";
+      const inactive=item.type==="participant"&&!item.active;
+      return `<div class="admin-row login-row"><span><b>${esc(item.name)}</b><small>${esc(label)}${inactive?" · Inactif":""}</small></span><span class="login-date">${date?"🟢 "+esc(date):"⚪ Jamais connecté"}</span></div>`;
+    }).join("");
+  }catch(e){container.innerHTML='<p class="login-error">❌ Impossible de charger les dernières connexions.</p>'}
+}
+
 async function loadAdmin(){
   await loadProducts();
   const st=await api("/api/settings"); $("#revolutLink").value=st.revolut_link||"";
   $("#adminProducts").innerHTML=window.products.map(p=>`<div class="admin-row product-row"><span><b>${esc(p.icon||"🛒")} ${esc(p.name)}</b><small>ID ${esc(p.id)}</small></span><span><input class="mini-input" id="price-${esc(p.id)}" type="number" min="0.01" step="0.01" value="${Number(p.price).toFixed(2)}"><button class="soft-btn" onclick="saveProduct('${esc(p.id)}')">Enregistrer</button></span></div>`).join("");
   const rows=await api("/api/clients");
   $("#adminClients").innerHTML=rows.map(c=>`<div class="admin-row"><span><b>${esc(c.id)}</b> · ${esc(c.name)}<small>Code participant : <strong>${esc(c.pin||"—")}</strong></small></span><span>${euro(c.balance)} <button class="soft-btn" onclick="changePin('${esc(c.id)}')">Code</button> <button class="danger-btn" onclick="deleteClient('${esc(c.id)}')">Supprimer</button></span></div>`).join("")||"<small>Aucune personne.</small>";
+  await loadLastLogins();
 }
 window.saveProduct=async id=>{
   const price=Number(document.querySelector("#price-"+CSS.escape(id)).value);

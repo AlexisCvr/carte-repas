@@ -79,12 +79,18 @@
     <div class="card-title"><div><h3>③ Personnes enregistrées</h3><p>Tu peux renommer ou désactiver une carte.</p></div><span>👥</span></div>
     <div id="adminClients"></div>
   </div>
+
+  <div class="admin-card">
+    <div class="card-title"><div><h3>④ Dernières connexions</h3><p>Dernière connexion de chaque compte enregistré.</p></div><div><span>🕐</span> <button class="soft-btn" type="button" onclick="loadLastLogins()">↻</button></div></div>
+    <div id="lastLogins" class="login-list"></div>
+  </div>
 </section>
 </main>
 
 <nav class="bottom-nav">
   <button class="tab active" data-page="home"><span>⌂</span>Accueil</button>
   <button class="tab" data-page="history"><span>≡</span>Historique</button><button class="tab" data-page="credits"><span>€</span>Crédits</button>
+  <button class="tab" data-external="convocations" onclick="openConvocations()"><span>⚽</span>Convocations</button>
   <button class="tab adminOnly hidden" data-page="admin"><span>⚙</span>Admin</button>
 </nav>
 </section>
