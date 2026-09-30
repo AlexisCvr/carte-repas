@@ -66,10 +66,22 @@ app.post("/api/login",async(q,r)=>{try{
   const username=String(q.body.username||"").trim().toLowerCase(),password=String(q.body.password||"");
   const {data:u,error}=await sb.from("users").select("*").eq("username",username).maybeSingle();
   if(error)throw error;
-  if(u&&bcrypt.compareSync(password,u.password_hash)){q.session.user={id:u.id,username:u.username,role:u.role};return r.json({user:q.session.user})}
+  if(u&&bcrypt.compareSync(password,u.password_hash)){
+    q.session.user={id:u.id,username:u.username,role:u.role};
+    const loginTime=new Date().toISOString();
+    const {error:lastLoginError}=await sb.from("users").update({last_login_at:loginTime}).eq("id",u.id);
+    if(lastLoginError)console.error("Erreur dernière connexion utilisateur :",lastLoginError);
+    return r.json({user:q.session.user});
+  }
   const {data:c,error:ce}=await sb.from("clients").select("*").eq("id",username).eq("active",true).maybeSingle();
   if(ce)throw ce;
-  if(c&&String(c.pin)===password){q.session.user={id:"p-"+cid(c.id),username:cid(c.id),role:"participant",clientId:cid(c.id)};return r.json({user:q.session.user})}
+  if(c&&String(c.pin)===password){
+    q.session.user={id:"p-"+cid(c.id),username:cid(c.id),role:"participant",clientId:cid(c.id),name:c.name};
+    const loginTime=new Date().toISOString();
+    const {error:lastLoginError}=await sb.from("clients").update({last_login_at:loginTime}).eq("id",c.id);
+    if(lastLoginError)console.error("Erreur dernière connexion participant :",lastLoginError);
+    return r.json({user:q.session.user});
+  }
   r.status(401).json({error:"Identifiants incorrects"});
 }catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
 app.post("/api/logout",(q,r)=>q.session.destroy(()=>r.json({ok:true})));
@@ -98,6 +110,22 @@ app.get("/api/clients/:id",auth,async(q,r)=>{try{
 
 app.get("/api/products",auth,async(q,r)=>{try{const {data,error}=await sb.from("products").select("*").eq("active",true);if(error)throw error;r.json(data||[])}catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
 app.get("/api/settings",auth,async(q,r)=>{try{const {data,error}=await sb.from("settings").select("value").eq("key","revolut_link").maybeSingle();if(error)throw error;r.json({revolut_link:data?.value||""})}catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
+app.get("/api/last-logins",admin,async(q,r)=>{try{
+  const {data:users,error:usersError}=await sb.from("users").select("id,username,role,last_login_at").order("username",{ascending:true});
+  if(usersError)throw usersError;
+  const {data:clients,error:clientsError}=await sb.from("clients").select("id,name,last_login_at,active").order("name",{ascending:true});
+  if(clientsError)throw clientsError;
+  const result=[
+    ...(users||[]).map(x=>({type:"user",id:x.id,name:x.username,role:x.role,last_login_at:x.last_login_at||null})),
+    ...(clients||[]).map(x=>({type:"participant",id:x.id,name:x.name,role:"participant",active:x.active,last_login_at:x.last_login_at||null}))
+  ].sort((a,b)=>{
+    if(!a.last_login_at&&!b.last_login_at)return a.name.localeCompare(b.name,"fr");
+    if(!a.last_login_at)return 1;
+    if(!b.last_login_at)return -1;
+    return new Date(b.last_login_at)-new Date(a.last_login_at);
+  });
+  r.json(result);
+}catch(e){console.error(e);r.status(500).json({error:"Impossible de charger les dernières connexions"})}});
 app.put("/api/settings",admin,async(q,r)=>{try{const value=String(q.body.revolut_link||"").trim();const {error}=await sb.from("settings").upsert({key:"revolut_link",value});if(error)throw error;r.json({revolut_link:value})}catch(e){console.error(e);r.status(500).json({error:"Erreur serveur"})}});
 
 app.get("/api/pending-credits",auth,async(q,r)=>{try{
