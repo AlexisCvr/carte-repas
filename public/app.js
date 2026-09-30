@@ -62,7 +62,7 @@ function renderModal(){
   const participant=me?.role==="participant";
   const staffControls=participant?"":`
     <div class="ops">${products.map(p=>`<button class="op" onclick="selectProduct('${esc(p.id)}')">${esc(p.icon||"🛒")}<br>${esc(p.name)}<small>-${euro(p.price)}</small></button>`).join("")}</div>
-    <div class="credit-box"><h3>💰 Ajouter du crédit</h3><div class="credit-form"><input id="creditInput" type="number" min="0.01" step="0.01" placeholder="Montant en €" value="${esc(creditAmount)}" oninput="creditAmount=this.value"><button class="primary" onclick="creditClient()">Créditer manuellement</button></div><button class="revolut-btn" onclick="requestRevolutCredit()">🔴 Demander un crédit avec Revolut</button></div>
+    <div class="credit-box"><h3>💰 Crédit / correction</h3><div class="credit-form"><input id="creditInput" type="number" step="0.01" placeholder="Montant en €" value="${esc(creditAmount)}" oninput="creditAmount=this.value"><button class="primary" onclick="creditClient()">Ajouter / corriger</button></div><button class="revolut-btn" onclick="requestRevolutCredit()">🔴 Demander un crédit avec Revolut</button></div>
     <div class="method"><button class="${selectedMethod==="Virement"?"selected":""}" onclick="selectMethod('Virement')">Virement</button><button class="${selectedMethod==="Espèces"?"selected":""}" onclick="selectMethod('Espèces')">Espèces</button><button class="${selectedMethod==="Carte"?"selected":""}" onclick="selectMethod('Carte')">Carte</button></div>
     <button class="primary confirm" ${selectedProduct?"":"disabled"} onclick="confirmConsumption()">VALIDER ${selectedProduct?esc(selectedProduct.name):"une consommation"}</button>`;
   const participantControls=participant?`
@@ -96,7 +96,7 @@ async function requestRevolutCredit(){
 }
 async function creditClient(){
   const amount=Number(creditAmount);
-  if(!Number.isFinite(amount)||amount<=0)return alert("Entre un montant supérieur à 0 €.");
+  if(!Number.isFinite(amount)||amount===0)return alert("Entre un montant différent de 0 €. Pour retirer un montant, utilise une valeur négative.");
   try{await api("/api/credit",{method:"POST",body:JSON.stringify({clientId:selectedClient.id,amount,method:selectedMethod})});creditAmount="";await refreshModal();await loadDashboard();await loadClients($("#search").value);await loadHistory()}
   catch(e){alert(e.message)}
 }
